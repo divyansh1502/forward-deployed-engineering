@@ -1,0 +1,1731 @@
+```text
+/*
+===============================================================================
+              FORWARD DEPLOYED ENGINEERING — LLM FUNDAMENTALS
+===============================================================================
+
+TOPICS:
+    1. What is an LLM?
+    2. How an LLM works — high level
+    3. Character vs Token
+    4. What is a Token?
+    5. What is Tokenization?
+    6. What is a Tokenizer?
+    7. What is a Token ID?
+    8. Why don't characters have unique tokens?
+    9. How tokens are divided
+   10. Why token order matters
+   11. Embeddings / Vector Embeddings
+   12. Attention
+   13. QKV
+   14. Query, Key, Value
+   15. Self-Attention
+   16. Prompting
+   17. Greedy Decoding
+   18. Prompting vs Greedy Decoding
+   19. Complete LLM flow
+   20. Quick Cheat Sheet
+
+
+===============================================================================
+1. WHAT IS AN LLM?
+===============================================================================
+
+LLM = Large Language Model.
+
+An LLM is a neural network trained on a huge amount of text/code/data to
+learn patterns in language.
+
+Examples of things an LLM can do:
+
+    - Answer questions
+    - Generate text
+    - Summarize
+    - Translate
+    - Write code
+    - Explain concepts
+    - Reason over provided information
+
+
+IMPORTANT:
+
+An LLM does NOT simply store a database of answers.
+
+It learns statistical/pattern relationships between tokens.
+
+At a simplified level:
+
+    Input tokens
+         |
+         v
+    Neural Network
+         |
+         v
+    Probability distribution
+         |
+         v
+    Next token
+         |
+         v
+    Repeat
+         |
+         v
+    Generated response
+
+
+===============================================================================
+2. HOW DOES AN LLM WORK? — HIGH LEVEL
+===============================================================================
+
+Suppose we give:
+
+    "Java is a"
+
+
+The LLM roughly performs:
+
+    Text
+     |
+     v
+    Tokenization
+     |
+     v
+    Token IDs
+     |
+     v
+    Embeddings
+     |
+     v
+    Transformer layers
+     |
+     +---- Self-Attention
+     |
+     +---- Neural network transformations
+     |
+     v
+    Probability distribution
+     |
+     v
+    Select next token
+     |
+     v
+    "programming"
+     |
+     v
+    Repeat
+
+
+Eventually:
+
+    "Java is a programming language..."
+
+
+The important idea:
+
+    LLM generates text ONE TOKEN AT A TIME.
+
+
+===============================================================================
+3. CHARACTER vs TOKEN
+===============================================================================
+
+CHARACTER:
+--------------------------------------------------------------------------------
+
+A character is an individual symbol.
+
+Example:
+
+    "Hello"
+
+Characters:
+
+    H
+    e
+    l
+    l
+    o
+
+
+TOKEN:
+--------------------------------------------------------------------------------
+
+A token is a unit of text chosen by the tokenizer.
+
+A token can be:
+
+    - A character
+    - Part of a word
+    - A complete word
+    - Multiple characters
+    - Punctuation
+    - Sometimes whitespace-related text
+
+
+For example, conceptually:
+
+    "playing"
+
+could become:
+
+    "play" + "ing"
+
+
+while:
+
+    "cat"
+
+might be one token.
+
+
+IMPORTANT:
+
+Tokenization is NOT simply:
+
+    one character = one token
+
+
+That would be inefficient for natural language.
+
+
+===============================================================================
+4. WHAT IS TOKENIZATION?
+===============================================================================
+
+Tokenization is the process of converting text into tokens.
+
+Example:
+
+    Input:
+
+    "I love Java"
+
+
+Conceptually:
+
+    ["I", " love", " Java"]
+
+
+Then each token is converted into a numerical ID.
+
+
+    ["I", " love", " Java"]
+             |
+             v
+    [ID_1, ID_2, ID_3]
+
+
+The exact token boundaries depend on the tokenizer/vocabulary.
+
+
+===============================================================================
+5. WHAT IS A TOKENIZER?
+===============================================================================
+
+A tokenizer is the component that converts:
+
+    TEXT <----> TOKENS / TOKEN IDs
+
+
+Example:
+
+    "Hello world"
+
+
+Tokenizer:
+
+    "Hello"
+    " world"
+
+
+Then:
+
+    "Hello"  ->  token ID
+    " world" ->  token ID
+
+
+So:
+
+    Text
+      |
+      v
+    Tokenizer
+      |
+      v
+    Token IDs
+
+
+During generation the reverse process occurs:
+
+    Token IDs
+        |
+        v
+    Tokenizer / decoder
+        |
+        v
+    Text
+
+
+===============================================================================
+6. WHAT IS A TOKEN ID?
+===============================================================================
+
+A Token ID is simply a numerical identifier assigned to a token in the
+model's vocabulary.
+
+Imagine a tiny vocabulary:
+
+    Token             ID
+    ----------------------
+    "I"               10
+    " love"           25
+    " Java"           41
+    " code"           87
+
+
+Then:
+
+    "I love Java"
+
+could become:
+
+    [10, 25, 41]
+
+
+IMPORTANT:
+
+The ID itself does NOT contain meaning.
+
+It is basically an index used to identify a token in the vocabulary.
+
+
+Think:
+
+    Token ID = Token's numerical address/index
+
+
+===============================================================================
+7. WHAT IS A VOCABULARY?
+===============================================================================
+
+Vocabulary = collection of tokens that the tokenizer knows.
+
+Example of a VERY simplified vocabulary:
+
+    ID       Token
+    ----------------
+    0        "a"
+    1        "the"
+    2        "cat"
+    3        " dog"
+    4        "ing"
+    5        "."
+    ...
+
+
+Real LLM vocabularies contain a very large number of tokens.
+
+
+So:
+
+    Tokenizer
+       |
+       +---- Vocabulary
+       |
+       +---- Token IDs
+
+
+===============================================================================
+8. "WHY DOES EACH CHARACTER HAVE A UNIQUE TOKEN?"
+===============================================================================
+
+IMPORTANT CORRECTION:
+
+Characters do NOT necessarily have unique individual tokens.
+
+
+For example, a tokenizer might represent:
+
+    "hello"
+
+as:
+
+    ["hello"]
+
+
+or:
+
+    ["he", "llo"]
+
+
+or potentially another segmentation.
+
+
+Why?
+
+Because modern tokenizers generally use SUBWORD TOKENIZATION.
+
+
+The goal is to find useful reusable pieces of text.
+
+
+===============================================================================
+9. WHY NOT MAKE EVERY CHARACTER A TOKEN?
+===============================================================================
+
+Imagine:
+
+    "internationalization"
+
+
+If every character became a token:
+
+    i n t e r n a t i o n a l i z a t i o n
+
+
+That's many tokens.
+
+
+The model would need much longer sequences.
+
+Instead, a tokenizer can break text into useful chunks:
+
+    "inter"
+    "national"
+    "ization"
+
+
+Conceptually:
+
+    internationalization
+             |
+             v
+    ["inter", "national", "ization"]
+
+
+This reduces sequence length and allows common word pieces to be reused.
+
+
+===============================================================================
+10. HOW ARE TOKENS DIVIDED?
+===============================================================================
+
+Modern tokenizers often use subword/tokenization algorithms.
+
+Different models can use different tokenization algorithms.
+
+Common families include:
+
+    - BPE
+    - WordPiece
+    - Unigram
+    - SentencePiece-based approaches
+
+
+The exact algorithm depends on the model.
+
+
+Example:
+
+    "unhappiness"
+
+
+Could conceptually become:
+
+    ["un", "happiness"]
+
+
+or:
+
+    ["un", "happy", "ness"]
+
+
+The actual result depends on the tokenizer.
+
+
+IMPORTANT:
+
+There is NO universal tokenization rule for every LLM.
+
+
+===============================================================================
+11. WHY SUBWORD TOKENS ARE USEFUL
+===============================================================================
+
+Suppose vocabulary contains:
+
+    "play"
+    "playing"
+    "played"
+    "player"
+
+
+If we store every possible word independently, vocabulary becomes huge.
+
+
+Instead:
+
+    play + ing
+    play + ed
+    play + er
+
+
+Common pieces can be reused.
+
+
+Advantages:
+
+    - Smaller vocabulary
+    - Handles unknown/new words better
+    - Efficient representation
+    - Works across many word forms
+
+
+===============================================================================
+12. UNKNOWN / RARE WORDS
+===============================================================================
+
+Suppose the model sees:
+
+    "Divyansh"
+
+
+Even if the complete word isn't a common vocabulary token, tokenizer can
+break it into smaller pieces.
+
+Conceptually:
+
+    "Divyansh"
+       |
+       v
+    ["Div", "yans", "h"]
+
+
+The exact split depends on the tokenizer.
+
+
+This is one reason subword tokenization is powerful.
+
+
+===============================================================================
+13. TOKEN ORDER MATTERS
+===============================================================================
+
+This is extremely important.
+
+Consider:
+
+    "Dog bites man"
+
+and:
+
+    "Man bites dog"
+
+
+Same words.
+
+Different order.
+
+Completely different meaning.
+
+
+Tokens:
+
+    Dog     bites     man
+     ↓        ↓        ↓
+    [10]     [25]     [40]
+
+
+versus:
+
+    Man     bites     dog
+     ↓        ↓        ↓
+    [40]     [25]     [10]
+
+
+The model needs information about:
+
+    WHICH token came before/after WHICH token.
+
+
+Without order information:
+
+    "Dog bites man"
+
+and
+
+    "Man bites dog"
+
+could look too similar.
+
+
+Therefore Transformers use positional information.
+
+
+===============================================================================
+14. POSITIONAL INFORMATION
+===============================================================================
+
+Tokens alone don't tell the model their position.
+
+Example:
+
+    [Dog] [bites] [man]
+
+
+The model needs to know:
+
+    Dog   -> position 1
+    bites -> position 2
+    man   -> position 3
+
+
+Modern Transformer architectures use positional representations/encodings
+to provide information about token positions.
+
+Different architectures use different approaches, such as:
+
+    - Positional embeddings
+    - Relative position methods
+    - Rotary Position Embeddings (RoPE)
+
+
+The important concept:
+
+    TOKEN ID
+       +
+    POSITION INFORMATION
+       =
+    Representation containing token + positional context
+
+
+===============================================================================
+15. EMBEDDING
+===============================================================================
+
+A token ID is just an integer.
+
+Example:
+
+    "Java" -> 15234
+
+
+The number 15234 itself does not represent the meaning of Java.
+
+
+The model converts token IDs into numerical vectors called:
+
+    EMBEDDINGS
+
+
+Conceptually:
+
+    Token ID
+       |
+       v
+    Embedding lookup
+       |
+       v
+    Vector
+
+Example:
+
+    "Java"
+       |
+       v
+    [0.12, -0.43, 0.88, 0.17, ...]
+
+
+The actual vectors are high-dimensional.
+
+
+===============================================================================
+16. VECTOR EMBEDDING — BRIEF
+===============================================================================
+
+A vector embedding is a numerical representation of a token/text in a
+multi-dimensional space.
+
+Conceptually:
+
+    "king" -> [....]
+    "queen" -> [....]
+    "apple" -> [....]
+
+
+Related concepts tend to have useful geometric relationships in embedding
+spaces.
+
+IMPORTANT:
+
+The exact meaning of individual dimensions is generally not something you
+should interpret directly.
+
+Think:
+
+    Token ID = identifier
+
+    Embedding = learned numerical representation
+
+
+===============================================================================
+17. ATTENTION
+===============================================================================
+
+Attention is one of the most important ideas behind Transformers.
+
+Attention allows the model to determine:
+
+    "Which other tokens should I focus on when processing this token?"
+
+
+Example:
+
+    "The animal didn't cross the road because it was tired."
+
+
+What does:
+
+    "it"
+
+refer to?
+
+
+The model needs to examine surrounding context.
+
+Attention helps tokens interact with other tokens and determine which
+information is important.
+
+
+Simplified:
+
+    Token
+      |
+      +---- look at other tokens
+      |
+      +---- assign importance
+      |
+      v
+    Context-aware representation
+
+
+===============================================================================
+18. SELF-ATTENTION
+===============================================================================
+
+Self-attention means:
+
+    Tokens in the SAME input sequence attend to one another.
+
+
+Example:
+
+    "The cat drank the milk because it was thirsty."
+
+
+When processing:
+
+    "it"
+
+
+the model can attend to:
+
+    "cat"
+    "drank"
+    "milk"
+    "thirsty"
+
+
+and other relevant tokens.
+
+
+Thus:
+
+    SELF = attention within the same sequence.
+
+
+===============================================================================
+19. QKV — QUERY, KEY, VALUE
+===============================================================================
+
+Self-attention uses three important concepts:
+
+    Q = Query
+    K = Key
+    V = Value
+
+
+Think of a search system.
+
+QUERY:
+    "What information am I looking for?"
+
+
+KEY:
+    "What information do I represent / what can I match against?"
+
+
+VALUE:
+    "What actual information should I provide if I am selected?"
+
+
+Therefore:
+
+    Query -> asks
+    Key   -> identifies relevance
+    Value -> provides information
+
+
+===============================================================================
+20. QUERY
+===============================================================================
+
+Query represents what the CURRENT token is looking for.
+
+Example:
+
+Token:
+
+    "it"
+
+
+Its Query asks something like:
+
+    "Which previous/current tokens can help determine what I refer to?"
+
+
+The actual Query is a learned vector, not an English sentence.
+
+
+Conceptually:
+
+    Token representation
+           |
+           v
+        Query vector
+
+
+===============================================================================
+21. KEY
+===============================================================================
+
+Each token also produces a Key vector.
+
+The Key represents information used to determine:
+
+    "How relevant am I to this Query?"
+
+
+So:
+
+    Query interacts with Keys.
+
+
+If Query and Key are highly compatible:
+
+    higher attention score
+
+
+If they are less compatible:
+
+    lower attention score
+
+
+===============================================================================
+22. VALUE
+===============================================================================
+
+Value represents the information that gets passed forward when a token
+receives attention.
+
+
+So:
+
+    Query -> asks what is relevant
+    Key   -> determines relevance
+    Value -> provides the information
+
+
+This is why the terminology is useful:
+
+    Q = Question
+    K = matching label
+    V = actual information
+
+
+This is only an analogy, but it is a good beginner memory trick.
+
+
+===============================================================================
+23. SELF-ATTENTION — INTERNAL FLOW
+===============================================================================
+
+Suppose:
+
+    "I love Java"
+
+
+Each token gets:
+
+    Query
+    Key
+    Value
+
+
+Conceptually:
+
+             I
+           / | \
+          /  |  \
+       love  |  Java
+          \  |  /
+           \ | /
+          Attention
+
+
+For every token:
+
+    1. Generate Q
+    2. Compare Q with Keys
+    3. Calculate attention scores
+    4. Convert scores into weights
+    5. Combine Values using those weights
+
+
+Result:
+
+    New context-aware representation
+
+
+===============================================================================
+24. SELF-ATTENTION FORMULA
+===============================================================================
+
+The simplified scaled dot-product attention formula is:
+
+                    QKᵀ
+    Attention = softmax(------) V
+                     √dₖ
+
+
+Where:
+
+    Q  = Query matrix
+    K  = Key matrix
+    V  = Value matrix
+    dₖ = dimension of Key vectors
+
+
+Don't memorize the formula without understanding the flow.
+
+
+Remember:
+
+    Q × K
+       |
+       v
+    relevance scores
+       |
+       v
+    softmax
+       |
+       v
+    attention weights
+       |
+       v
+    weighted V
+       |
+       v
+    output
+
+
+===============================================================================
+25. WHY SOFTMAX?
+===============================================================================
+
+Softmax converts scores into a probability-like distribution.
+
+Example:
+
+Raw scores:
+
+    [2.0, 1.0, 0.1]
+
+
+After softmax:
+
+    [0.66, 0.24, 0.10]
+
+(illustrative values)
+
+
+Now the model can interpret them as relative attention weights.
+
+
+Higher weight:
+
+    more attention
+
+
+Lower weight:
+
+    less attention
+
+
+===============================================================================
+26. MULTI-HEAD ATTENTION
+===============================================================================
+
+Transformers generally don't use only one attention mechanism.
+
+They use:
+
+    MULTI-HEAD ATTENTION
+
+
+Different attention heads can learn different relationships.
+
+Conceptually:
+
+             Input
+               |
+      ---------------------
+      |        |          |
+    Head 1   Head 2      Head 3
+      |        |          |
+      ---------------------
+               |
+            Combine
+               |
+             Output
+
+
+One head might learn relationships related to:
+
+    syntax
+
+Another might learn:
+
+    long-distance dependencies
+
+Another might focus on:
+
+    semantic relationships
+
+This is an intuitive explanation; individual heads don't have fixed human-
+interpretable roles in every model.
+
+
+===============================================================================
+27. PROMPTING
+===============================================================================
+
+PROMPTING means providing instructions/context/input to the model to guide
+its output.
+
+Example:
+
+    "Explain inheritance in Java in 5 bullet points."
+
+
+This is a prompt.
+
+
+A prompt can contain:
+
+    - Instructions
+    - Context
+    - Examples
+    - Constraints
+    - Questions
+    - Data
+
+
+Example:
+
+    ROLE:
+    You are a Java teacher.
+
+    TASK:
+    Explain interfaces.
+
+    CONSTRAINT:
+    Use simple language and examples.
+
+
+The complete input given to the model is the prompt/context.
+
+
+===============================================================================
+28. PROMPTING ≠ MODEL TRAINING
+===============================================================================
+
+Prompting does NOT normally change the model's parameters.
+
+You are giving instructions to the already-trained model.
+
+
+Think:
+
+    Training:
+        changes learned parameters
+
+
+    Prompting:
+        guides model behavior for a particular request
+
+
+===============================================================================
+29. GREEDY DECODING
+===============================================================================
+
+After processing the input, the model produces probabilities for possible
+next tokens.
+
+Example:
+
+Prompt:
+
+    "The sky is"
+
+
+Possible next tokens:
+
+    blue     -> 0.70
+    cloudy   -> 0.15
+    clear    -> 0.10
+    red      -> 0.05
+
+
+GREEDY DECODING chooses the token with the highest probability:
+
+    blue
+
+
+Then the model generates the next token based on the updated context.
+
+
+===============================================================================
+30. GREEDY DECODING FLOW
+===============================================================================
+
+Input:
+
+    "The sky is"
+
+
+Model:
+
+    blue   -> 70%
+    cloudy -> 15%
+    clear  -> 10%
+    red    -> 5%
+
+
+Greedy:
+
+    choose BLUE
+
+
+Now:
+
+    "The sky is blue"
+
+
+Generate next token.
+
+Again:
+
+    choose highest probability token.
+
+
+Continue until:
+
+    - EOS/end token
+    - maximum token limit
+    - stopping condition
+
+
+===============================================================================
+31. GREEDY DECODING vs PROMPTING
+===============================================================================
+
+These are NOT the same concept.
+
+
+PROMPTING:
+--------------------------------------------------------------------------------
+
+Controls/guides:
+
+    WHAT YOU ASK THE MODEL
+
+
+Example:
+
+    "Explain Java inheritance in simple language."
+
+
+GREEDY DECODING:
+--------------------------------------------------------------------------------
+
+Controls:
+
+    HOW THE NEXT TOKEN IS SELECTED
+
+
+It selects:
+
+    highest-probability token
+
+
+So:
+
+    Prompting -> input/instruction side
+
+    Decoding   -> output-generation side
+
+
+===============================================================================
+32. VERY IMPORTANT — "PROMPTING AND GREEDY" 
+===============================================================================
+
+You mentioned "pumping and greedy".
+
+The correct term in this context is:
+
+    PROMPTING
+
+not:
+
+    pumping
+
+
+So remember:
+
+    Prompting = designing the input/instructions
+
+
+    Greedy decoding = choosing the highest-probability next token
+
+
+===============================================================================
+33. COMPLETE LLM PIPELINE
+===============================================================================
+
+Let's connect everything.
+
+User writes:
+
+    "Explain Java interfaces"
+
+
+                    TEXT
+                      |
+                      v
+                TOKENIZER
+                      |
+                      v
+                  TOKENS
+                      |
+                      v
+                 TOKEN IDs
+                      |
+                      v
+                 EMBEDDINGS
+                      |
+                      v
+          POSITION INFORMATION
+                      |
+                      v
+            TRANSFORMER LAYERS
+                      |
+          +-----------+-----------+
+          |                       |
+          v                       v
+     SELF-ATTENTION          FEED-FORWARD
+          |                       |
+          +-----------+-----------+
+                      |
+                      v
+              OUTPUT LOGITS
+                      |
+                      v
+          PROBABILITY DISTRIBUTION
+                      |
+                      v
+                 DECODING
+                      |
+                      v
+              NEXT TOKEN
+                      |
+                      v
+             Repeat process
+                      |
+                      v
+                  RESPONSE
+
+
+===============================================================================
+34. LOGITS
+===============================================================================
+
+Before probabilities are obtained, the model produces scores called:
+
+    LOGITS
+
+
+Conceptually:
+
+    Model output:
+
+    Token A -> 2.1
+    Token B -> 5.7
+    Token C -> 1.4
+    Token D -> 3.2
+
+
+Then softmax converts logits into probabilities.
+
+
+    LOGITS
+       |
+       v
+    SOFTMAX
+       |
+       v
+    PROBABILITIES
+
+
+Then a decoding strategy chooses the next token.
+
+
+===============================================================================
+35. IMPORTANT DISTINCTION
+===============================================================================
+
+Do not confuse:
+
+    TOKEN
+    TOKEN ID
+    EMBEDDING
+    LOGIT
+    PROBABILITY
+
+
+They are different.
+
+
+TOKEN:
+    text unit
+
+
+TOKEN ID:
+    integer identifying that token
+
+
+EMBEDDING:
+    learned vector representation
+
+
+LOGIT:
+    raw score produced for possible next tokens
+
+
+PROBABILITY:
+    normalized likelihood after softmax
+
+
+===============================================================================
+36. COMPLETE SIMPLE EXAMPLE
+===============================================================================
+
+Input:
+
+    "Java is"
+
+
+STEP 1 — TOKENIZATION
+
+    ["Java", " is"]
+
+
+STEP 2 — TOKEN IDs
+
+    [1523, 318]
+
+
+STEP 3 — EMBEDDINGS
+
+    1523 -> [.....]
+    318  -> [.....]
+
+
+STEP 4 — POSITION
+
+    Java -> position 1
+    is   -> position 2
+
+
+STEP 5 — SELF-ATTENTION
+
+    Tokens interact with each other.
+
+    Q -> Query
+    K -> Key
+    V -> Value
+
+
+STEP 6 — TRANSFORMER PROCESSING
+
+    Multiple layers transform the representations.
+
+
+STEP 7 — OUTPUT
+
+    Model produces logits for possible next tokens.
+
+
+Example:
+
+    "programming" -> high score
+    "a"           -> medium score
+    "not"         -> low score
+
+
+STEP 8 — SOFTMAX
+
+    Convert scores into probabilities.
+
+
+STEP 9 — DECODING
+
+    Greedy decoding might choose:
+
+        "programming"
+
+
+Now context becomes:
+
+    "Java is programming"
+
+
+Then repeat.
+
+
+===============================================================================
+37. WHY TOKEN ORDER IS CRITICAL
+===============================================================================
+
+Consider:
+
+    "I don't like Java."
+
+vs:
+
+    "I like Java."
+
+
+Small token changes can completely change meaning.
+
+
+Even:
+
+    "Dog bites man."
+
+vs:
+
+    "Man bites dog."
+
+
+Therefore the Transformer needs:
+
+    Token identity
+        +
+    Token position
+        +
+    Relationships between tokens
+
+
+This allows the model to understand context.
+
+
+===============================================================================
+38. FORWARD DEPLOYED ENGINEERING — PRACTICAL CONNECTION
+===============================================================================
+
+As a Forward Deployed Engineer, you don't necessarily need to train an LLM
+from scratch.
+
+You should understand how to USE and INTEGRATE LLMs into real systems.
+
+
+Important concepts:
+
+    Prompt
+    Token
+    Token ID
+    Tokenizer
+    Context window
+    Embedding
+    Vector search
+    Attention
+    QKV
+    Transformer
+    Decoding
+    API
+    Tool calling
+    RAG
+    Evaluation
+    Guardrails
+
+
+For this particular topic, remember the core pipeline:
+
+    TEXT
+      ↓
+    TOKENS
+      ↓
+    TOKEN IDs
+      ↓
+    EMBEDDINGS
+      ↓
+    ATTENTION / TRANSFORMER
+      ↓
+    LOGITS
+      ↓
+    PROBABILITIES
+      ↓
+    DECODING
+      ↓
+    NEXT TOKEN
+      ↓
+    REPEAT
+
+
+===============================================================================
+39. QUICK INTERVIEW QUESTIONS
+===============================================================================
+
+Q1. What is a token?
+
+A:
+A token is a unit of text processed by an LLM. It can be a word, subword,
+character, punctuation, or another tokenizer-defined piece.
+
+
+Q2. What is a Token ID?
+
+A:
+A numerical identifier assigned to a token in the model's vocabulary.
+
+
+Q3. What is a tokenizer?
+
+A:
+A system that converts text into tokens/token IDs and can reconstruct text
+from generated token IDs.
+
+
+Q4. Why don't we tokenize every character?
+
+A:
+Character-level tokenization produces longer sequences. Subword
+tokenization provides a better balance between vocabulary size and sequence
+length.
+
+
+Q5. Why does token order matter?
+
+A:
+Because word/token order changes meaning. Transformers therefore use
+positional information.
+
+
+Q6. What is an embedding?
+
+A:
+A learned numerical vector representation of a token or other input.
+
+
+Q7. What is attention?
+
+A:
+A mechanism that allows the model to determine which parts of the input
+are more relevant when processing a token.
+
+
+Q8. What is QKV?
+
+A:
+
+    Q = Query
+    K = Key
+    V = Value
+
+Query determines what information is being sought, Key determines relevance,
+and Value carries the information that is aggregated.
+
+
+Q9. What is self-attention?
+
+A:
+Attention in which tokens within the same sequence attend to one another.
+
+
+Q10. What is prompting?
+
+A:
+Providing instructions/context/input to guide the model's behavior.
+
+
+Q11. What is greedy decoding?
+
+A:
+A decoding strategy that selects the highest-probability next token at each
+generation step.
+
+
+===============================================================================
+40. FINAL CHEAT SHEET
+===============================================================================
+
+LLM
+    ↓
+Large Language Model
+
+
+TOKEN
+    ↓
+Unit of text
+
+
+TOKENIZER
+    ↓
+Text -> Tokens / IDs
+
+
+TOKEN ID
+    ↓
+Numerical identifier of token
+
+
+VOCABULARY
+    ↓
+Collection of available tokens
+
+
+EMBEDDING
+    ↓
+Token -> learned vector
+
+
+POSITION
+    ↓
+Where token occurs in sequence
+
+
+ATTENTION
+    ↓
+Which information is relevant?
+
+
+Q
+    ↓
+Query -> What am I looking for?
+
+
+K
+    ↓
+Key -> How relevant am I?
+
+
+V
+    ↓
+Value -> What information do I provide?
+
+
+SELF-ATTENTION
+    ↓
+Tokens attend to tokens in the same sequence
+
+
+LOGITS
+    ↓
+Raw scores for possible next tokens
+
+
+SOFTMAX
+    ↓
+Scores -> probabilities
+
+
+PROMPTING
+    ↓
+Guide the model through input/instructions
+
+
+GREEDY DECODING
+    ↓
+Choose highest-probability next token
+
+
+===============================================================================
+                         GOLDEN MEMORY TRICK
+===============================================================================
+
+              USER INPUT
+                   |
+                   v
+              TOKENIZER
+                   |
+                   v
+               TOKEN IDs
+                   |
+                   v
+              EMBEDDINGS
+                   |
+                   v
+          POSITION INFORMATION
+                   |
+                   v
+          TRANSFORMER / ATTENTION
+                   |
+             +-----+-----+
+             |           |
+             Q           K
+             |           |
+             +-----+-----+
+                   |
+                   v
+                   V
+                   |
+                   v
+                LOGITS
+                   |
+                   v
+                SOFTMAX
+                   |
+                   v
+             PROBABILITIES
+                   |
+                   v
+               DECODING
+                   |
+                   v
+             NEXT TOKEN
+                   |
+                   +------> Repeat
+
+
+ONE-LINE SUMMARY:
+
+    "LLM takes tokenized text, converts tokens into vectors, uses
+     Transformer attention to understand relationships and context,
+     produces probabilities for the next token, chooses a token through
+     a decoding strategy, and repeats this process to generate text."
+
+
+===============================================================================
+*/
+```
